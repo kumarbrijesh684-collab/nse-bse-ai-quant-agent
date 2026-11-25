@@ -7,22 +7,207 @@ from textblob import TextBlob
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import requests
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
-st.set_page_config(page_title="NSE/BSE AI Quant Agent", page_icon="🏛️", layout="wide")
+# ==============================================================================
+# 1. PAGE CONFIG & INSTITUTIONAL FINTECH DESIGN SYSTEM (CSS)
+# ==============================================================================
+st.set_page_config(
+    page_title="QUANTDESK INDIA | NSE/BSE Algorithmic Terminal",
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-st.title("🏛️ NSE/BSE Institutional AI Quantitative Trading Agent (v4.1)")
-st.markdown("**Architected by Brijesh Kumar Patel** | *Regime-Aware Multi-Factor Scanner, NLP News Veto & Risk Engine*")
+st.markdown("""
+<style>
+    @import url('https://googleapis.com');
 
-st.sidebar.header("⚙️ Portfolio & Alert Settings")
-capital = st.sidebar.number_input("Virtual Capital (₹)", min_value=10000, value=100000, step=10000)
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+        background-color: #06090F;
+        color: #E2E8F0;
+    }
+
+    .stApp {
+        background: radial-gradient(circle at 15% 10%, #0D1526 0%, #06090F 55%, #04060A 100%);
+    }
+
+    /* Hide default Streamlit branding for clean terminal look */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {background: transparent !important;}
+
+    /* Top Navigation / Terminal Header */
+    .terminal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(13, 19, 33, 0.85);
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        border-left: 4px solid #00E599;
+        border-radius: 12px;
+        padding: 18px 24px;
+        margin-bottom: 18px;
+        backdrop-filter: blur(12px);
+    }
+    .brand-title {
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: #F8FAFC;
+        margin: 0;
+    }
+    .brand-accent {
+        color: #00E599;
+    }
+    .brand-sub {
+        font-size: 12px;
+        color: #94A3B8;
+        margin-top: 3px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .status-pill {
+        background: rgba(0, 229, 153, 0.12);
+        border: 1px solid rgba(0, 229, 153, 0.4);
+        color: #00E599;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* KPI Metric Boxes */
+    div[data-testid="metric-container"] {
+        background: #0B111E;
+        border: 1px solid #1E293B;
+        border-radius: 10px;
+        padding: 14px 16px;
+        transition: border-color 0.2s ease;
+    }
+    div[data-testid="metric-container"]:hover {
+        border-color: #38BDF8;
+    }
+    div[data-testid="stMetricValue"] {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 22px !important;
+        font-weight: 700;
+        color: #F8FAFC;
+    }
+
+    /* Institutional Trade Ticket Cards */
+    .trade-ticket {
+        background: linear-gradient(145deg, #0D1525 0%, #090E1A 100%);
+        border: 1px solid #1E293B;
+        border-top: 3px solid #00E599;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    .ticket-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #1E293B;
+        padding-bottom: 8px;
+        margin-bottom: 10px;
+    }
+    .ticket-symbol {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 700;
+        color: #FFFFFF;
+    }
+    .ticket-badge {
+        background: rgba(0, 229, 153, 0.15);
+        color: #00E599;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .ticket-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        font-size: 13px;
+    }
+    .t-label { color: #64748B; font-size: 11px; text-transform: uppercase; }
+    .t-val { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #E2E8F0; }
+    .t-sl { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #F43F5E; }
+    .t-tgt { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #00E599; }
+
+    /* Execute Scan CTA Button */
+    div.stButton > button:first-child {
+        background: linear-gradient(90deg, #00C885 0%, #0284C7 100%);
+        color: #040914;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 14px;
+        text-transform: uppercase;
+        width: 100%;
+        box-shadow: 0 4px 20px rgba(0, 200, 133, 0.25);
+    }
+    div.stButton > button:first-child:hover {
+        opacity: 0.92;
+        transform: translateY(-1px);
+    }
+
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #0B111E;
+        padding: 6px;
+        border-radius: 10px;
+        border: 1px solid #1E293B;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-weight: 600;
+        font-size: 13px;
+        color: #94A3B8;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #1E293B !important;
+        color: #00E599 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# IST Time & Market Session Check
+ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+is_weekday = ist_now.weekday() < 5
+market_open = is_weekday and (9 <= ist_now.hour < 15 or (ist_now.hour == 15 and ist_now.minute <= 30))
+session_badge = "● NSE LIVE SESSION" if market_open else "○ NSE POST-MARKET"
+
+st.markdown(f"""
+<div class="terminal-header">
+    <div>
+        <div class="brand-title">QUANTDESK <span class="brand-accent">INDIA</span> // NSE·BSE TERMINAL</div>
+        <div class="brand-sub">ARCHITECT: BRIJESH KUMAR PATEL | ENGINE: v6.0 MULTI-FACTOR + NLP VETO</div>
+    </div>
+    <div class="status-pill">{session_badge} • {ist_now.strftime('%d %b %H:%M IST')}</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# 2. SIDEBAR RISK & TELEGRAM CONTROLS
+# ==============================================================================
+st.sidebar.markdown("### ⚙️ Desk Risk Parameters")
+capital = st.sidebar.number_input("Allocated Capital (₹)", min_value=10000, value=100000, step=10000)
 risk_pct = st.sidebar.slider("Max Risk Per Trade (%)", 0.5, 5.0, 2.0, 0.5) / 100
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("📲 Telegram Mobile Alerts")
-enable_tg = st.sidebar.checkbox("Enable Telegram Alerts", value=False)
-tg_token = st.sidebar.text_input("Bot Token", type="password")
-tg_chat_id = st.sidebar.text_input("Chat ID")
+st.sidebar.markdown("### 📲 Telegram Bot Dispatch")
+enable_tg = st.sidebar.checkbox("Enable Auto-Alerts", value=False)
+tg_token = st.sidebar.text_input("Bot HTTP Token", type="password", placeholder="123456:ABC-DEF...")
+tg_chat_id = st.sidebar.text_input("Chat ID", placeholder="987654321")
 
 def send_telegram(msg):
     if enable_tg and tg_token and tg_chat_id:
@@ -41,6 +226,9 @@ WATCHLIST = [
     "HAL.NS", "BEL.NS", "DLF.NS", "TRENT.NS", "ETERNAL.NS"
 ]
 
+# ==============================================================================
+# 3. QUANTITATIVE COMPUTATION ENGINE
+# ==============================================================================
 def compute_indicators(df):
     df['EMA_20'] = df['Close'].ewm(span=20, adjust=False).mean()
     df['EMA_50'] = df['Close'].ewm(span=50, adjust=False).mean()
@@ -72,114 +260,17 @@ def get_news_sentiment(symbol):
         pass
     return "🟡 NEUTRAL"
 
-if st.button("🚀 Run Live NSE Quant Scan", type="primary"):
-    with st.spinner("Batch-Fetching NSE Market Regime & Top 30 Liquid Equities..."):
+if "scan_done" not in st.session_state:
+    st.session_state.scan_done = False
+
+# Action Control Strip
+col_btn, col_info = st.columns([2, 5])
+with col_btn:
+    run_clicked = st.button("⚡ EXECUTE QUANT SCAN")
+with col_info:
+    st.markdown(f"<div style='padding-top:10px; font-size:13px; color:#94A3B8;'>Universe: <b>30 Liquid NSE Equities</b> • Capital: <b>₹{capital:,}</b> • Max Risk/Trade: <b>{risk_pct*100:.1f}%</b> (Open sidebar <code>&gt;</code> to edit)</div>", unsafe_allow_html=True)
+
+if run_clicked:
+    with st.spinner("Running Multi-Factor Quant Matrix, Alpha Relative Strength & NLP News Gatekeeper..."):
         nifty = yf.download("^NSEI", period="3mo", interval="1d", progress=False)
         if isinstance(nifty.columns, pd.MultiIndex):
-            nifty.columns = nifty.columns.get_level_values(0)
-        nifty['EMA_50'] = nifty['Close'].ewm(span=50, adjust=False).mean()
-        curr_nifty = round(float(nifty['Close'].iloc[-1]), 2)
-        is_bullish = curr_nifty > float(nifty['EMA_50'].iloc[-1])
-        nifty_1m = ((curr_nifty / float(nifty['Close'].iloc[-21])) - 1) * 100
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Nifty 50 Level", f"₹{curr_nifty:,.2f}", f"{nifty_1m:+.2f}% (1M)")
-        col2.metric("Macro Market Regime", "🟢 BULLISH" if is_bullish else "🔴 BEARISH")
-        col3.metric("Scan Time (IST)", datetime.now().strftime("%d-%b %H:%M"))
-
-        # Single Fast Batch Download (Prevents Yahoo Rate-Limit KeyError)
-        all_data = yf.download(WATCHLIST, period="6mo", interval="1d", group_by="ticker", progress=False)
-
-        results = []
-        top_df = None
-        top_name = ""
-        best_score = -1
-
-        for ticker in WATCHLIST:
-            try:
-                if ticker not in all_data.columns.get_level_values(0):
-                    continue
-                df = all_data[ticker].dropna().copy()
-                if len(df) < 55:
-                    continue
-                df = compute_indicators(df)
-                last = df.iloc[-1]
-
-                price = round(float(last['Close']), 2)
-                rsi = round(float(last['RSI']), 2)
-                ema20, ema50 = float(last['EMA_20']), float(last['EMA_50'])
-                macd, sig = float(last['MACD']), float(last['Signal_Line'])
-                atr = float(last['ATR'])
-                vol_r = round(float(last['Vol_Ratio']), 2)
-
-                alpha = round((((price / float(df['Close'].iloc[-21])) - 1) * 100) - nifty_1m, 2)
-                res_20d = round(float(df['High'].tail(20).max()), 2)
-                sup_20d = round(float(df['Low'].tail(20).min()), 2)
-
-                score = 0
-                if price > ema20 > ema50: score += 30
-                elif price > ema20: score += 15
-                if 45 <= rsi <= 65: score += 20
-                elif rsi < 35: score += 25
-                if macd > sig: score += 20
-                if vol_r > 1.15: score += 15
-                if alpha > 2.0: score += 15
-
-                if score >= 85:
-                    grade, mult = "🔥 A+ GRADE", 1.0
-                elif score >= 70:
-                    grade, mult = "✅ A GRADE", 0.75
-                elif score >= 55:
-                    grade, mult = "👀 WATCHLIST", 0.0
-                else:
-                    grade, mult = "⏳ NEUTRAL", 0.0
-
-                news = get_news_sentiment(ticker) if score >= 70 else "⚪ SKIPPED"
-                if "NEGATIVE" in news and score >= 70:
-                    grade, mult = "🚫 VETOED (NEG NEWS)", 0.0
-
-                sl = round(max(price - (1.5 * atr), sup_20d * 0.99), 2)
-                tgt = round(price + (3.0 * atr), 2)
-                qty = int(((capital * risk_pct) * mult) / max(price - sl, 1))
-
-                results.append({
-                    "Stock": ticker.replace(".NS", ""),
-                    "Price (₹)": price,
-                    "Score": score,
-                    "Signal": grade,
-                    "Alpha vs Nifty": f"{alpha:+.2f}%",
-                    "Support (₹)": sup_20d,
-                    "Resistance (₹)": res_20d,
-                    "Stop Loss (₹)": sl,
-                    "Target (₹)": tgt,
-                    "Smart Qty": qty,
-                    "News": news
-                })
-
-                if score >= 80 and "VETOED" not in grade:
-                    send_telegram(f"🚨 *NSE AI ALERT: {ticker.replace('.NS', '')}*\n• Grade: {grade} ({score}/100)\n• Price: ₹{price} | SL: ₹{sl} | Target: ₹{tgt}\n• Qty: {qty}")
-
-                if score > best_score:
-                    best_score = score
-                    top_df = df.copy()
-                    top_name = ticker.replace(".NS", "")
-            except Exception:
-                pass
-
-        if len(results) > 0:
-            res_df = pd.DataFrame(results).sort_values(by="Score", ascending=False).reset_index(drop=True)
-            st.subheader("📊 Live Quantitative Signal Matrix")
-            st.dataframe(res_df, use_container_width=True)
-
-            if top_df is not None:
-                st.subheader(f"📈 Institutional Chart: {top_name} (Score: {best_score}/100)")
-                plot_df = top_df.tail(90)
-                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
-                fig.add_trace(go.Candlestick(x=plot_df.index, open=plot_df['Open'], high=plot_df['High'], low=plot_df['Low'], close=plot_df['Close'], name="Price"), row=1, col=1)
-                fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['EMA_20'], line=dict(color='cyan', width=1.5), name="20 EMA"), row=1, col=1)
-                fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['EMA_50'], line=dict(color='orange', width=1.5), name="50 EMA"), row=1, col=1)
-                fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['RSI'], line=dict(color='violet', width=2), name="RSI"), row=2, col=1)
-                fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False)
-                st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("⚠️ Yahoo Finance server temporary busy hai. Kripya 10 second baad dobara 'Run Live NSE Quant Scan' button dabayein.")
