@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timezone, timedelta
-from quant_engine import run_quant_scan  # <-- Direct Backend Connection!
+from quant_engine import run_quant_scan
 
 st.set_page_config(page_title="QUANTDESK INDIA", page_icon="⚡", layout="wide")
 st.markdown("<style>.stApp{background:#06090F;color:#E2E8F0;} .hdr{background:#0D1321;border-left:4px solid #00E599;padding:15px;border-radius:10px;margin-bottom:15px;} div.stButton>button:first-child{background:linear-gradient(90deg,#00C885,#0284C7);color:#040914;font-weight:800;border:none;border-radius:8px;width:100%;padding:12px;}</style>", unsafe_allow_html=True)
@@ -47,18 +47,26 @@ if st.session_state.done:
 
     with t2:
         sym = st.selectbox("Select Stock:", df_out["Symbol"].tolist())
-        info = df_out[df_out["Symbol"] == sym].iloc
+        info = df_out[df_out["Symbol"] == sym].iloc[0]
         qty = st.number_input("Qty:", 1, 10000, max(1, int(info["Qty"])))
         cost = round(float(info["LTP (₹)"]) * qty, 2)
         if st.button(f"🟢 PAPER BUY {sym} (₹{cost:,.2f})"):
             if cost <= st.session_state.paper_cash:
                 st.session_state.paper_cash -= cost
-                st.session_state.open_pos.append({"Symbol": sym, "Qty": qty, "Entry": float(info["LTP (₹)"]), "SL": float(info["Stop Loss (₹)"]), "Target": float(info["Target (₹)"])})
+                st.session_state.open_pos.append({
+                    "Symbol": sym, "Qty": qty,
+                    "Entry": float(info["LTP (₹)"]),
+                    "SL": float(info["Stop Loss (₹)"]),
+                    "Target": float(info["Target (₹)"])
+                })
                 st.rerun()
+            else:
+                st.error("❌ Insufficient Cash in Paper Wallet!")
+
         for i, pos in enumerate(st.session_state.open_pos):
             cp = pmap.get(pos["Symbol"], pos["Entry"])
             pnl = round((cp - pos["Entry"]) * pos["Qty"], 2)
-            col1, col2 = st.columns()
+            col1, col2 = st.columns([3, 1])
             col1.write(f"**{pos['Symbol']}** ({pos['Qty']} Qty) | Entry: ₹{pos['Entry']} → LTP: ₹{cp} | **P&L: ₹{pnl:+,.2f}**")
             if col2.button("Exit Trade", key=f"ex_{i}"):
                 st.session_state.paper_cash += round(cp * pos["Qty"], 2)
