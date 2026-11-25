@@ -33,34 +33,31 @@ st.markdown("""
         background: radial-gradient(circle at 15% 10%, #0D1526 0%, #06090F 55%, #04060A 100%);
     }
 
-    /* Hide default Streamlit branding for clean terminal look */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {background: transparent !important;}
 
-    /* Top Navigation / Terminal Header */
     .terminal-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
         background: rgba(13, 19, 33, 0.85);
         border: 1px solid rgba(56, 189, 248, 0.22);
         border-left: 4px solid #00E599;
         border-radius: 12px;
         padding: 18px 24px;
         margin-bottom: 18px;
-        backdrop-filter: blur(12px);
     }
     .brand-title {
-        font-size: 22px;
+        font-size: 21px;
         font-weight: 800;
         letter-spacing: -0.5px;
         color: #F8FAFC;
         margin: 0;
     }
-    .brand-accent {
-        color: #00E599;
-    }
+    .brand-accent { color: #00E599; }
     .brand-sub {
         font-size: 12px;
         color: #94A3B8;
@@ -78,16 +75,11 @@ st.markdown("""
         font-family: 'JetBrains Mono', monospace;
     }
 
-    /* KPI Metric Boxes */
     div[data-testid="metric-container"] {
         background: #0B111E;
         border: 1px solid #1E293B;
         border-radius: 10px;
         padding: 14px 16px;
-        transition: border-color 0.2s ease;
-    }
-    div[data-testid="metric-container"]:hover {
-        border-color: #38BDF8;
     }
     div[data-testid="stMetricValue"] {
         font-family: 'JetBrains Mono', monospace;
@@ -96,7 +88,6 @@ st.markdown("""
         color: #F8FAFC;
     }
 
-    /* Institutional Trade Ticket Cards */
     .trade-ticket {
         background: linear-gradient(145deg, #0D1525 0%, #090E1A 100%);
         border: 1px solid #1E293B;
@@ -139,7 +130,6 @@ st.markdown("""
     .t-sl { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #F43F5E; }
     .t-tgt { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #00E599; }
 
-    /* Execute Scan CTA Button */
     div.stButton > button:first-child {
         background: linear-gradient(90deg, #00C885 0%, #0284C7 100%);
         color: #040914;
@@ -151,36 +141,10 @@ st.markdown("""
         font-size: 14px;
         text-transform: uppercase;
         width: 100%;
-        box-shadow: 0 4px 20px rgba(0, 200, 133, 0.25);
-    }
-    div.stButton > button:first-child:hover {
-        opacity: 0.92;
-        transform: translateY(-1px);
-    }
-
-    /* Tabs Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #0B111E;
-        padding: 6px;
-        border-radius: 10px;
-        border: 1px solid #1E293B;
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 6px;
-        padding: 8px 16px;
-        font-weight: 600;
-        font-size: 13px;
-        color: #94A3B8;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #1E293B !important;
-        color: #00E599 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# IST Time & Market Session Check
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 is_weekday = ist_now.weekday() < 5
 market_open = is_weekday and (9 <= ist_now.hour < 15 or (ist_now.hour == 15 and ist_now.minute <= 30))
@@ -190,7 +154,7 @@ st.markdown(f"""
 <div class="terminal-header">
     <div>
         <div class="brand-title">QUANTDESK <span class="brand-accent">INDIA</span> // NSE·BSE TERMINAL</div>
-        <div class="brand-sub">ARCHITECT: BRIJESH KUMAR PATEL | ENGINE: v6.0 MULTI-FACTOR + NLP VETO</div>
+        <div class="brand-sub">ARCHITECT: BRIJESH KUMAR PATEL | ENGINE: v6.1 MULTI-FACTOR + NLP VETO</div>
     </div>
     <div class="status-pill">{session_badge} • {ist_now.strftime('%d %b %H:%M IST')}</div>
 </div>
@@ -254,8 +218,10 @@ def get_news_sentiment(symbol):
         feed = feedparser.parse(f"https://google.com{clean}+share+news+india&hl=en-IN&gl=IN&ceid=IN:en")
         scores = [TextBlob(e.title).sentiment.polarity for e in feed.entries[:5]]
         avg = np.mean(scores) if scores else 0
-        if avg > 0.05: return "🟢 POSITIVE"
-        elif avg < -0.05: return "🔴 NEGATIVE"
+        if avg > 0.05:
+            return "🟢 POSITIVE"
+        elif avg < -0.05:
+            return "🔴 NEGATIVE"
     except Exception:
         pass
     return "🟡 NEUTRAL"
@@ -263,14 +229,39 @@ def get_news_sentiment(symbol):
 if "scan_done" not in st.session_state:
     st.session_state.scan_done = False
 
-# Action Control Strip
-col_btn, col_info = st.columns([2, 5])
+col_btn, col_info = st.columns([1, 2])
 with col_btn:
     run_clicked = st.button("⚡ EXECUTE QUANT SCAN")
 with col_info:
-    st.markdown(f"<div style='padding-top:10px; font-size:13px; color:#94A3B8;'>Universe: <b>30 Liquid NSE Equities</b> • Capital: <b>₹{capital:,}</b> • Max Risk/Trade: <b>{risk_pct*100:.1f}%</b> (Open sidebar <code>&gt;</code> to edit)</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='padding-top:10px; font-size:13px; color:#94A3B8;'>Universe: <b>30 Liquid NSE Equities</b> • Capital: <b>₹{capital:,}</b> • Max Risk/Trade: <b>{risk_pct*100:.1f}%</b></div>", unsafe_allow_html=True)
 
 if run_clicked:
     with st.spinner("Running Multi-Factor Quant Matrix, Alpha Relative Strength & NLP News Gatekeeper..."):
         nifty = yf.download("^NSEI", period="3mo", interval="1d", progress=False)
         if isinstance(nifty.columns, pd.MultiIndex):
+            nifty.columns = nifty.columns.get_level_values(0)
+        nifty['EMA_50'] = nifty['Close'].ewm(span=50, adjust=False).mean()
+        curr_nifty = round(float(nifty['Close'].iloc[-1]), 2)
+        is_bullish = curr_nifty > float(nifty['EMA_50'].iloc[-1])
+        nifty_1m = ((curr_nifty / float(nifty['Close'].iloc[-21])) - 1) * 100
+
+        all_data = yf.download(WATCHLIST, period="1y", interval="1d", group_by="ticker", progress=False)
+
+        results = []
+        stock_dfs = {}
+
+        for ticker in WATCHLIST:
+            try:
+                if ticker not in all_data.columns.get_level_values(0):
+                    continue
+                df = all_data[ticker].dropna().copy()
+                if len(df) < 55:
+                    continue
+                df = compute_indicators(df)
+                clean_sym = ticker.replace(".NS", "")
+                stock_dfs[clean_sym] = df
+                last = df.iloc[-1]
+
+                price = round(float(last['Close']), 2)
+                rsi = round(float(last['RSI']), 2)
+                ema20, ema50 = float(last['EMA_20']), float(last['EMA_50'])
