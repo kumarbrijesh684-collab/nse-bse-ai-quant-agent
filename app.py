@@ -11,7 +11,7 @@ from datetime import datetime
 
 st.set_page_config(page_title="NSE/BSE AI Quant Agent", page_icon="🏛️", layout="wide")
 
-st.title("🏛️ NSE/BSE Institutional AI Quantitative Trading Agent (v4.0)")
+st.title("🏛️ NSE/BSE Institutional AI Quantitative Trading Agent (v4.1)")
 st.markdown("**Architected by Brijesh Kumar Patel** | *Regime-Aware Multi-Factor Scanner, NLP News Veto & Risk Engine*")
 
 st.sidebar.header("⚙️ Portfolio & Alert Settings")
@@ -62,15 +62,18 @@ def compute_indicators(df):
 
 def get_news_sentiment(symbol):
     clean = symbol.replace(".NS", "")
-    feed = feedparser.parse(f"https://google.com{clean}+share+news+india&hl=en-IN&gl=IN&ceid=IN:en")
-    scores = [TextBlob(e.title).sentiment.polarity for e in feed.entries[:5]]
-    avg = np.mean(scores) if scores else 0
-    if avg > 0.05: return "🟢 POSITIVE"
-    elif avg < -0.05: return "🔴 NEGATIVE"
+    try:
+        feed = feedparser.parse(f"https://google.com{clean}+share+news+india&hl=en-IN&gl=IN&ceid=IN:en")
+        scores = [TextBlob(e.title).sentiment.polarity for e in feed.entries[:5]]
+        avg = np.mean(scores) if scores else 0
+        if avg > 0.05: return "🟢 POSITIVE"
+        elif avg < -0.05: return "🔴 NEGATIVE"
+    except Exception:
+        pass
     return "🟡 NEUTRAL"
 
 if st.button("🚀 Run Live NSE Quant Scan", type="primary"):
-    with st.spinner("Scanning NSE Market Regime & Top Liquid Equities..."):
+    with st.spinner("Batch-Fetching NSE Market Regime & Top 30 Liquid Equities..."):
         nifty = yf.download("^NSEI", period="3mo", interval="1d", progress=False)
         if isinstance(nifty.columns, pd.MultiIndex):
             nifty.columns = nifty.columns.get_level_values(0)
@@ -84,6 +87,9 @@ if st.button("🚀 Run Live NSE Quant Scan", type="primary"):
         col2.metric("Macro Market Regime", "🟢 BULLISH" if is_bullish else "🔴 BEARISH")
         col3.metric("Scan Time (IST)", datetime.now().strftime("%d-%b %H:%M"))
 
+        # Single Fast Batch Download (Prevents Yahoo Rate-Limit KeyError)
+        all_data = yf.download(WATCHLIST, period="6mo", interval="1d", group_by="ticker", progress=False)
+
         results = []
         top_df = None
         top_name = ""
@@ -91,10 +97,11 @@ if st.button("🚀 Run Live NSE Quant Scan", type="primary"):
 
         for ticker in WATCHLIST:
             try:
-                df = yf.download(ticker, period="6mo", interval="1d", progress=False)
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = df.columns.get_level_values(0)
-                if len(df) < 55: continue
+                if ticker not in all_data.columns.get_level_values(0):
+                    continue
+                df = all_data[ticker].dropna().copy()
+                if len(df) < 55:
+                    continue
                 df = compute_indicators(df)
                 last = df.iloc[-1]
 
@@ -159,17 +166,20 @@ if st.button("🚀 Run Live NSE Quant Scan", type="primary"):
             except Exception:
                 pass
 
-        res_df = pd.DataFrame(results).sort_values(by="Score", ascending=False).reset_index(drop=True)
-        st.subheader("📊 Live Quantitative Signal Matrix")
-        st.dataframe(res_df, use_container_width=True)
+        if len(results) > 0:
+            res_df = pd.DataFrame(results).sort_values(by="Score", ascending=False).reset_index(drop=True)
+            st.subheader("📊 Live Quantitative Signal Matrix")
+            st.dataframe(res_df, use_container_width=True)
 
-        if top_df is not None:
-            st.subheader(f"📈 Institutional Chart: {top_name} (Score: {best_score}/100)")
-            plot_df = top_df.tail(90)
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
-            fig.add_trace(go.Candlestick(x=plot_df.index, open=plot_df['Open'], high=plot_df['High'], low=plot_df['Low'], close=plot_df['Close'], name="Price"), row=1, col=1)
-            fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['EMA_20'], line=dict(color='cyan', width=1.5), name="20 EMA"), row=1, col=1)
-            fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['EMA_50'], line=dict(color='orange', width=1.5), name="50 EMA"), row=1, col=1)
-            fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['RSI'], line=dict(color='violet', width=2), name="RSI"), row=2, col=1)
-            fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False)
-            st.plotly_chart(fig, use_container_width=True)
+            if top_df is not None:
+                st.subheader(f"📈 Institutional Chart: {top_name} (Score: {best_score}/100)")
+                plot_df = top_df.tail(90)
+                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
+                fig.add_trace(go.Candlestick(x=plot_df.index, open=plot_df['Open'], high=plot_df['High'], low=plot_df['Low'], close=plot_df['Close'], name="Price"), row=1, col=1)
+                fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['EMA_20'], line=dict(color='cyan', width=1.5), name="20 EMA"), row=1, col=1)
+                fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['EMA_50'], line=dict(color='orange', width=1.5), name="50 EMA"), row=1, col=1)
+                fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['RSI'], line=dict(color='violet', width=2), name="RSI"), row=2, col=1)
+                fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False)
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("⚠️ Yahoo Finance server temporary busy hai. Kripya 10 second baad dobara 'Run Live NSE Quant Scan' button dabayein.")
